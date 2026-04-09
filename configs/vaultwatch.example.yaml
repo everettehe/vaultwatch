@@ -1,34 +1,21 @@
-# vaultwatch example configuration
-# Copy this file to vaultwatch.yaml and adjust values as needed.
-
 vault:
   address: "https://vault.example.com"
-  token: "s.your-vault-token"
-  namespace: ""          # optional: Vault Enterprise namespace
-  timeout: "10s"         # HTTP client timeout
+  token: "s.xxxxxxxxxxxxxxxx"
+  namespace: ""  # optional, for Vault Enterprise
+  timeout: "30s"
 
-# Paths to scan for secrets. Supports recursive listing.
-paths:
-  - "secret/data/production"
-  - "secret/data/staging"
-
-# How far in advance to warn before a secret expires.
-warn_before: "72h"   # e.g. 72h, 7d
-
-# Alert check interval.
-check_interval: "1h"
+monitor:
+  paths:
+    - "secret/data/db"
+    - "secret/data/api"
+    - "secret/data/certs"
+  warn_before: "72h"   # alert this far before expiration
+  check_interval: "1h" # how often to scan
 
 notifiers:
-  # Log to stdout (always enabled as fallback).
   log:
     enabled: true
 
-  # Send alerts to a Slack channel via Incoming Webhook.
-  slack:
-    enabled: false
-    webhook_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
-
-  # Send alerts via email (SMTP).
   email:
     enabled: false
     host: "smtp.example.com"
@@ -39,13 +26,26 @@ notifiers:
     to:
       - "ops@example.com"
 
-  # Send alerts to a generic HTTP webhook.
-  webhook:
+  slack:
     enabled: false
-    url: "https://hooks.example.com/vaultwatch"
-    method: "POST"    # default: POST
+    webhook_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
 
-  # Page on-call via PagerDuty Events API v2.
+  teams:
+    enabled: false
+    webhook_url: "https://outlook.office.com/webhook/XXX"
+
   pagerduty:
     enabled: false
     integration_key: "your-pagerduty-integration-key"
+
+  opsgenie:
+    enabled: false
+    api_key: "your-opsgenie-api-key"
+    api_url: ""  # optional, defaults to https://api.opsgenie.com/v2/alerts
+
+  webhook:
+    enabled: false
+    url: "https://your-endpoint.example.com/hooks/vault"
+    method: "POST"  # optional, defaults to POST
+    headers:
+      Authorization: "Bearer your-token"
