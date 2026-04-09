@@ -1,36 +1,51 @@
 # vaultwatch example configuration
-# Copy this file to vaultwatch.yaml and adjust to your environment.
+# Copy this file to vaultwatch.yaml and adjust values as needed.
 
 vault:
-  # Vault server address. Can also be set via VAULT_ADDR environment variable.
-  address: "https://vault.example.com:8200"
+  address: "https://vault.example.com"
+  token: "s.your-vault-token"
+  namespace: ""          # optional: Vault Enterprise namespace
+  timeout: "10s"         # HTTP client timeout
 
-  # Vault token for authentication. Prefer VAULT_TOKEN env var in production.
-  token: "s.CHANGEME"
+# Paths to scan for secrets. Supports recursive listing.
+paths:
+  - "secret/data/production"
+  - "secret/data/staging"
 
-  # Optional: Vault namespace (Vault Enterprise only).
-  # namespace: "admin"
+# How far in advance to warn before a secret expires.
+warn_before: "72h"   # e.g. 72h, 7d
 
-alerts:
-  # Send a warning alert this long before a secret expires.
-  warn_before: 168h   # 7 days
+# Alert check interval.
+check_interval: "1h"
 
-  # Send a critical alert this long before a secret expires.
-  crit_before: 24h    # 1 day
+notifiers:
+  # Log to stdout (always enabled as fallback).
+  log:
+    enabled: true
 
-  # Optional: Slack incoming webhook URL for notifications.
-  # slack_webhook: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+  # Send alerts to a Slack channel via Incoming Webhook.
+  slack:
+    enabled: false
+    webhook_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
 
-  # Optional: Email address to send alert notifications to.
-  # email: "ops@example.com"
+  # Send alerts via email (SMTP).
+  email:
+    enabled: false
+    host: "smtp.example.com"
+    port: 587
+    username: "alerts@example.com"
+    password: "smtp-password"
+    from: "alerts@example.com"
+    to:
+      - "ops@example.com"
 
-# List of Vault secret paths to monitor for expiration.
-secrets:
-  - path: secret/data/myapp/database
-    description: "MyApp production database credentials"
+  # Send alerts to a generic HTTP webhook.
+  webhook:
+    enabled: false
+    url: "https://hooks.example.com/vaultwatch"
+    method: "POST"    # default: POST
 
-  - path: secret/data/myapp/api-key
-    description: "Third-party API key — rotates every 90 days"
-
-  - path: secret/data/shared/tls-cert
-    description: "Wildcard TLS certificate"
+  # Page on-call via PagerDuty Events API v2.
+  pagerduty:
+    enabled: false
+    integration_key: "your-pagerduty-integration-key"
