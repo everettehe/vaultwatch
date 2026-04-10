@@ -1,11 +1,10 @@
+// Package main is the entry point for the vaultwatch CLI.
 package main
 
 import (
-	"context"
+	"errors"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/yourusername/vaultwatch/internal/config"
 	"github.com/yourusername/vaultwatch/internal/monitor"
@@ -16,16 +15,18 @@ import (
 )
 
 func main() {
-	if err := run(); err != nil {
+	if err := run(os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
-	cfgPath := os.Getenv("VAULTWATCH_CONFIG")
-	if cfgPath == "" {
-		cfgPath = "configs/vaultwatch.yaml"
+func run(args []string) error {
+	cfgPath := "configs/vaultwatch.yaml"
+	for i, a := range args {
+		if (a == "--config" || a == "-c") && i+1 < len(args) {
+			cfgPath = args[i+1]
+		}
 	}
 
 	cfg, err := config.Load(cfgPath)
@@ -33,52 +34,55 @@ func run() error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
-	vaultClient, err := vault.NewClient(cfg.Vault)
+	vaultClient, err := vault.NewClient(cfg)
 	if err != nil {
 		return fmt.Errorf("creating vault client: %w", err)
 	}
 
 	lister := vault.NewLister(vaultClient)
-	scn := scanner.New(lister, cfg.Scanner.Paths)
+	scn := scanner.New(lister)
 
 	notifiers, err := buildNotifiers(cfg)
 	if err != nil {
 		return fmt.Errorf("building notifiers: %w", err)
 	}
 
-	mon := monitor.New(vaultClient, notifiers, cfg.Monitor)
+	mon, err := monitor.New(vaultClient, notifier.NewMultiNotifier(notifiers...), cfg)
+	if err != nil {
+		return fmt.Errorf("creating monitor: %w", err)
+	}
 
 	r, err := runner.New(cfg, scn, mon)
 	if err != nil {
 		return fmt.Errorf("creating runner: %w", err)
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
-
-	return r.Run(ctx)
+	return r.Run()
 }
 
-func buildNotifiers(cfg *config.Config) (notifier.Notifier, error) {
+func buildNotifiers(cfg *config.Config) ([]notifier.Notifier, error) {
 	var notifiers []notifier.Notifier
 
 	notifiers = append(notifiers, notifier.NewLogNotifier())
 
 	if cfg.Notifiers.Slack.WebhookURL != "" {
-		sn, err := notifier.NewSlackNotifier(cfg.Notifiers.Slack)
+		sn, err := notifier.NewSlackNotifier(cfg.Notifiers.Slack.WebhookURL)
 		if err != nil {
 			return nil, fmt.Errorf("slack notifier: %w", err)
 		}
 		notifiers = append(notifiers, sn)
 	}
 
-	if cfg.Notifiers.Email.Host != "" {
-		en, err := notifier.NewEmailNotifier(cfg.Notifiers.Email)
+	if cfg.Notifiers.SNS.TopicARN != "" {
+		snsN, err := notifier.NewSNSNotifier(cfg.Notifiers.SNS.TopicARN)
 		if err != nil {
-			return nil, fmt.Errorf("email notifier: %w", err)
+			return nil, fmt.Errorf("sns notifier: %w", err)
 		}
-		notifiers = append(notifiers, en)
+		notifiers = append(notifiers, snsN)
 	}
 
-	return notifier.NewMultiNotifier(notifiers...), nil
+	if len(notifiers) == 0 {
+		return nil, errors.New("no notifiers configured")
+	}
+	return notifiers, nil
 }
