@@ -3,6 +3,7 @@ package notifier
 import (
 	"fmt"
 	"net/smtp"
+	"strings"
 	"time"
 
 	"vaultwatch/internal/vault"
@@ -51,7 +52,7 @@ func (e *EmailNotifier) Notify(secret vault.Secret) error {
 		"\r\n"+
 		"%s\r\n",
 		e.config.From,
-		e.config.To[0],
+		strings.Join(e.config.To, ", "),
 		subject,
 		body,
 	)
