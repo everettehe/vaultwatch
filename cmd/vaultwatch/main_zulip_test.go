@@ -62,6 +62,20 @@ func TestBuildNotifiers_Zulip_MissingStream(t *testing.T) {
 	}
 }
 
+func TestBuildNotifiers_Zulip_MissingBaseURL(t *testing.T) {
+	cfg := minimalConfigWithZulip(
+		"",
+		"bot@org.com",
+		"apikey",
+		"alerts",
+		"vault",
+	)
+	_, err := buildNotifiers(cfg)
+	if err == nil {
+		t.Fatal("expected error for missing base URL")
+	}
+}
+
 func TestZulipNotifier_ImplementsInterface(t *testing.T) {
 	n, err := notifier.NewZulipNotifier(
 		"https://org.zulipchat.com",
