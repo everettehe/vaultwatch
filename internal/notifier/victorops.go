@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -71,7 +72,8 @@ func (v *VictorOpsNotifier) Notify(secret *vault.Secret) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("victorops: unexpected status code %d", resp.StatusCode)
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 256))
+		return fmt.Errorf("victorops: unexpected status code %d: %s", resp.StatusCode, bytes.TrimSpace(respBody))
 	}
 	return nil
 }
