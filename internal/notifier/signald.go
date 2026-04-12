@@ -5,12 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/yourusername/vaultwatch/internal/vault"
 )
 
-// SignaldNotifier sends notifications via a local signald HTTP bridge.
+// SignaldNotifier sends notifications via the signald HTTP API (Signal messenger).
 type SignaldNotifier struct {
 	baseURL    string
 	sender     string
@@ -18,22 +17,19 @@ type SignaldNotifier struct {
 	client     *http.Client
 }
 
-type signaldPayload struct {
-	Username   string   `json:"username"`
-	Recipients []string `json:"recipients"`
-	Message    string   `json:"message"`
+type signaldMessage struct {
+	Username     string   `json:"username"`
+	Recipients   []string `json:"recipients"`
+	MessageBody  string   `json:"messageBody"`
 }
 
-// NewSignaldNotifier creates a new SignaldNotifier.
-// baseURL is the signald HTTP bridge URL (e.g. http://localhost:8080),
-// sender is the registered Signal number, and recipients is a list of
-// phone numbers or group IDs to notify.
+// NewSignaldNotifier constructs a SignaldNotifier.
 func NewSignaldNotifier(baseURL, sender string, recipients []string) (*SignaldNotifier, error) {
 	if baseURL == "" {
 		return nil, fmt.Errorf("signald: base URL is required")
 	}
 	if sender == "" {
-		return nil, fmt.Errorf("signald: sender number is required")
+		return nil, fmt.Errorf("signald: sender is required")
 	}
 	if len(recipients) == 0 {
 		return nil, fmt.Errorf("signald: at least one recipient is required")
@@ -42,29 +38,29 @@ func NewSignaldNotifier(baseURL, sender string, recipients []string) (*SignaldNo
 		baseURL:    baseURL,
 		sender:     sender,
 		recipients: recipients,
-		client:     &http.Client{Timeout: 10 * time.Second},
+		client:     &http.Client{},
 	}, nil
 }
 
-// Notify sends a Signal message for the given secret via signald.
-func (n *SignaldNotifier) Notify(secret *vault.Secret) error {
-	msg := FormatMessage(secret)
-	payload := signaldPayload{
-		Username:   n.sender,
-		Recipients: n.recipients,
-		Message:    fmt.Sprintf("%s\n%s", msg.Subject, msg.Body),
+// Notify sends a Signal message for the given secret.
+func (n *SignaldNotifier) Notify(s *vault.Secret) error {
+	msg, _ := FormatMessage(s)
+	payload := signaldMessage{
+		Username:    n.sender,
+		Recipients:  n.recipients,
+		MessageBody: msg,
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("signald: failed to marshal payload: %w", err)
 	}
-	resp, err := n.client.Post(n.baseURL+"/v1/send", "application/json", bytes.NewReader(body))
+	resp, err := n.client.Post(n.baseURL+"/v2/send", "application/json", bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("signald: request failed: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
-		return fmt.Errorf("signald: unexpected status code %d", resp.StatusCode)
+		return fmt.Errorf("signald: unexpected status %d", resp.StatusCode)
 	}
 	return nil
 }
