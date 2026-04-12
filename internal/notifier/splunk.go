@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -83,7 +84,8 @@ func (s *SplunkNotifier) Notify(secret *vault.Secret) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("splunk: unexpected status %d", resp.StatusCode)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return fmt.Errorf("splunk: unexpected status %d: %s", resp.StatusCode, bytes.TrimSpace(body))
 	}
 	return nil
 }
