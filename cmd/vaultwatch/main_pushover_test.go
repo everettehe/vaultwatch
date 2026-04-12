@@ -43,6 +43,19 @@ func TestBuildNotifiers_Pushover_MissingUserKey(t *testing.T) {
 	}
 }
 
+func TestBuildNotifiers_Pushover_MissingBothCredentials(t *testing.T) {
+	cfg := minimalConfig()
+	cfg.Notifiers.Pushover.UserKey = ""
+	cfg.Notifiers.Pushover.APIToken = ""
+
+	// When both credentials are missing, no Pushover notifier should be
+	// registered and no error should be returned (notifier simply skipped).
+	_, err := buildNotifiers(cfg)
+	if err != nil {
+		t.Fatalf("expected no error when both Pushover credentials are absent, got %v", err)
+	}
+}
+
 func TestPushoverNotifier_ImplementsInterface(t *testing.T) {
 	n, err := notifier.NewPushoverNotifier("userkey123", "apitoken456")
 	if err != nil {
