@@ -11,9 +11,9 @@ import (
 )
 
 func TestNewGoogleChatNotifier_Valid(t *testing.T) {
-	n, err := notifier.NewGoogleChatNotifier("https://chat.googleapis.com/v1/spaces/test/messages?key=abc")
+	n, err := notifier.NewGoogleChatNotifier("https://chat.googleapis.com/webhook")
 	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if n == nil {
 		t.Fatal("expected non-nil notifier")
@@ -28,67 +28,66 @@ func TestNewGoogleChatNotifier_MissingWebhook(t *testing.T) {
 }
 
 func TestGoogleChatNotifier_Notify_ExpiringSoon(t *testing.T) {
-	var capturedBody []byte
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = r.Body
+	var called bool
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
-	_ = capturedBody
+	defer ts.Close()
 
-	n, err := notifier.NewGoogleChatNotifier(server.URL)
+	n, err := notifier.NewGoogleChatNotifier(ts.URL)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	secret := &vault.Secret{
-		Path:      "secret/my-app/api-key",
+		Path:      "secret/myapp/token",
 		ExpiresAt: time.Now().Add(48 * time.Hour),
 	}
-
 	if err := n.Notify(secret); err != nil {
-		t.Fatalf("expected no error, got %v", err)
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !called {
+		t.Fatal("expected webhook to be called")
 	}
 }
 
 func TestGoogleChatNotifier_Notify_Expired(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer ts.Close()
 
-	n, err := notifier.NewGoogleChatNotifier(server.URL)
+	n, err := notifier.NewGoogleChatNotifier(ts.URL)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	secret := &vault.Secret{
-		Path:      "secret/my-app/db-pass",
+		Path:      "secret/myapp/token",
 		ExpiresAt: time.Now().Add(-1 * time.Hour),
 	}
-
 	if err := n.Notify(secret); err != nil {
-		t.Fatalf("expected no error, got %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
 func TestGoogleChatNotifier_Notify_ServerError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
-	defer server.Close()
+	defer ts.Close()
 
-	n, err := notifier.NewGoogleChatNotifier(server.URL)
+	n, err := notifier.NewGoogleChatNotifier(ts.URL)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	secret := &vault.Secret{
-		Path:      "secret/my-app/token",
+		Path:      "secret/myapp/token",
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 	}
-
 	if err := n.Notify(secret); err == nil {
-		t.Fatal("expected error for server error response")
+		t.Fatal("expected error on server error response")
 	}
 }
