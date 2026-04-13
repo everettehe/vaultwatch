@@ -41,12 +41,12 @@ func (n *GoogleChatNotifier) Notify(secret *vault.Secret) error {
 
 	resp, err := n.client.Post(n.webhookURL, "application/json", bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("googlechat: post: %w", err)
+		return fmt.Errorf("googlechat: send request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("googlechat: unexpected status: %d", resp.StatusCode)
+		return fmt.Errorf("googlechat: unexpected status code: %d", resp.StatusCode)
 	}
 	return nil
 }
