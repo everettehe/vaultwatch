@@ -16,4 +16,17 @@
 //
 // Set GOOGLE_APPLICATION_CREDENTIALS or use Workload Identity when running
 // on GKE/Cloud Run.
+//
+// # Message Format
+//
+// Each published message contains a JSON payload with the following fields:
+//
+//	{
+//	  "secret_path": "secret/myapp/db-password",
+//	  "expires_at":  "2024-06-01T00:00:00Z",
+//	  "severity":    "critical"
+//	}
+//
+// Messages also include a "severity" attribute on the Pub/Sub message itself
+// to allow subscription filtering (e.g. filter by severity="critical").
 package notifier
