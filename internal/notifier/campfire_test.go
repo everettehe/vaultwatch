@@ -27,18 +27,25 @@ func TestNewCampfireNotifier_MissingWebhook(t *testing.T) {
 	}
 }
 
-func TestCampfireNotifier_Notify_ExpiringSoon(t *testing.T) {
-	var received bool
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		received = true
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
+// newTestCampfireServer creates a test HTTP server and a CampfireNotifier pointed at it.
+// The provided handler is used to respond to incoming requests.
+func newTestCampfireServer(t *testing.T, handler http.HandlerFunc) (*httptest.Server, *notifier.CampfireNotifier) {
+	t.Helper()
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
 	n, err := notifier.NewCampfireNotifier(server.URL)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("unexpected error creating notifier: %v", err)
 	}
+	return server, n
+}
+
+func TestCampfireNotifier_Notify_ExpiringSoon(t *testing.T) {
+	var received bool
+	_, n := newTestCampfireServer(t, func(w http.ResponseWriter, r *http.Request) {
+		received = true
+		w.WriteHeader(http.StatusOK)
+	})
 
 	secret := &vault.Secret{
 		Path:      "secret/data/myapp/api-key",
@@ -54,15 +61,9 @@ func TestCampfireNotifier_Notify_ExpiringSoon(t *testing.T) {
 }
 
 func TestCampfireNotifier_Notify_Expired(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	_, n := newTestCampfireServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	n, err := notifier.NewCampfireNotifier(server.URL)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	})
 
 	secret := &vault.Secret{
 		Path:      "secret/data/myapp/db-pass",
@@ -75,15 +76,9 @@ func TestCampfireNotifier_Notify_Expired(t *testing.T) {
 }
 
 func TestCampfireNotifier_Notify_ServerError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	_, n := newTestCampfireServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer server.Close()
-
-	n, err := notifier.NewCampfireNotifier(server.URL)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	})
 
 	secret := &vault.Secret{
 		Path:      "secret/data/myapp/token",
