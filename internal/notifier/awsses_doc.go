@@ -1,20 +1,18 @@
 // Package notifier provides alert delivery integrations for VaultWatch.
 //
-// # AWS SES Notifier
+// # Twilio SMS Notifier
 //
-// The SES notifier sends email alerts via Amazon Simple Email Service.
+// The Twilio notifier sends SMS alerts via the Twilio REST API.
 //
 // Required configuration:
 //
 //	notifiers:
-//	  ses:
-//	    from: alerts@example.com
-//	    to: ops@example.com
-//	    region: us-east-1  # optional, falls back to AWS_REGION env var
+//	  twilio:
+//	    account_sid: "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+//	    auth_token: "your_auth_token"
+//	    from: "+15005550006"
+//	    to: "+15005550010"
 //
-// Authentication uses the standard AWS credential chain (env vars,
-// shared credentials file, IAM role, etc.).
-//
-// Both the from and to addresses must be verified in SES unless your
-// account is out of the SES sandbox.
+// The notifier sends a plain-text SMS message containing the secret path,
+// expiration status, and days remaining.
 package notifier
