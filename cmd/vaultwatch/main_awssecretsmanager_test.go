@@ -29,6 +29,17 @@ func TestBuildNotifiers_SecretsManager_MissingSecretID(t *testing.T) {
 	}
 }
 
+func TestBuildNotifiers_SecretsManager_MissingRegion(t *testing.T) {
+	cfg := minimalConfig()
+	cfg.Notifiers.AWSSecretsManager = &config.AWSSecretsManagerConfig{
+		SecretID: "arn:aws:secretsmanager:us-east-1:123456789012:secret:vaultwatch",
+	}
+	_, err := buildNotifiers(cfg)
+	if err == nil {
+		t.Fatal("expected error when region is missing")
+	}
+}
+
 func TestSecretsManagerNotifier_ImplementsInterface(t *testing.T) {
 	type notifierIface interface {
 		Notify(context.Context, vault.Secret) error
