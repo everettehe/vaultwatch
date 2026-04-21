@@ -80,3 +80,12 @@ func TestPushoverNotifier_Notify_ServerError(t *testing.T) {
 	defer server.Close()
 	_ = server
 }
+
+// newTestSecret is a helper that creates a vault.Secret with a path and an
+// expiration offset relative to now, reducing boilerplate in notify tests.
+func newTestSecret(path string, expiresIn time.Duration) *vault.Secret {
+	return &vault.Secret{
+		Path:      path,
+		ExpiresAt: time.Now().Add(expiresIn),
+	}
+}
