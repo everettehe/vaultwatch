@@ -1,13 +1,13 @@
 package config
 
-// EventBridgeConfig holds configuration for the AWS EventBridge notifier.
-type EventBridgeConfig struct {
-	// EventBus is the event bus name or ARN. Defaults to "default".
-	EventBus string `yaml:"event_bus"`
+// AWSEventBridgeConfig holds configuration for the AWS EventBridge notifier.
+type AWSEventBridgeConfig struct {
+	// EventBus is the name or ARN of the EventBridge event bus.
+	EventBus string `mapstructure:"event_bus"`
 
-	// Source is the event source string. Defaults to "vaultwatch".
-	Source string `yaml:"source"`
+	// Source is the event source string (default: "vaultwatch").
+	Source string `mapstructure:"source"`
 
-	// DetailType is the EventBridge detail-type field. Defaults to "VaultSecretExpiry".
-	DetailType string `yaml:"detail_type"`
+	// Region is the AWS region. If empty, the SDK default chain is used.
+	Region string `mapstructure:"region"`
 }
