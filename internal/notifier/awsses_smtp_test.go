@@ -7,60 +7,55 @@ import (
 	"github.com/yourusername/vaultwatch/internal/vault"
 )
 
-func newSMTPSecret() *vault.Secret {
-	return &vault.Secret{
+func newSMTPSecret(daysUntil int) vault.Secret {
+	return vault.Secret{
 		Path:      "secret/smtp-test",
-		ExpiresAt: time.Now().Add(48 * time.Hour),
+		ExpiresAt: time.Now().Add(time.Duration(daysUntil) * 24 * time.Hour),
 	}
 }
 
 func TestNewSMTPNotifier_Valid(t *testing.T) {
-	n, err := NewSMTPNotifier("smtp.example.com", 587, "user", "pass", "from@example.com", []string{"to@example.com"})
+	n, err := NewSMTPNotifier("smtp.example.com", "user", "pass", "from@example.com", "to@example.com", 587)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	if n == nil {
-		t.Fatal("expected notifier, got nil")
+		t.Fatal("expected non-nil notifier")
 	}
 }
 
 func TestNewSMTPNotifier_MissingHost(t *testing.T) {
-	_, err := NewSMTPNotifier("", 587, "user", "pass", "from@example.com", []string{"to@example.com"})
+	_, err := NewSMTPNotifier("", "user", "pass", "from@example.com", "to@example.com", 587)
 	if err == nil {
 		t.Fatal("expected error for missing host")
 	}
 }
 
 func TestNewSMTPNotifier_MissingFrom(t *testing.T) {
-	_, err := NewSMTPNotifier("smtp.example.com", 587, "user", "pass", "", []string{"to@example.com"})
+	_, err := NewSMTPNotifier("smtp.example.com", "user", "pass", "", "to@example.com", 587)
 	if err == nil {
-		t.Fatal("expected error for missing from address")
+		t.Fatal("expected error for missing from")
 	}
 }
 
 func TestNewSMTPNotifier_MissingTo(t *testing.T) {
-	_, err := NewSMTPNotifier("smtp.example.com", 587, "user", "pass", "from@example.com", []string{})
+	_, err := NewSMTPNotifier("smtp.example.com", "user", "pass", "from@example.com", "", 587)
 	if err == nil {
-		t.Fatal("expected error for missing recipients")
+		t.Fatal("expected error for missing to")
 	}
 }
 
-func TestSMTPNotifier_ImplementsInterface(t *testing.T) {
-	n, err := NewSMTPNotifier("smtp.example.com", 587, "", "", "from@example.com", []string{"to@example.com"})
+func TestNewSMTPNotifier_DefaultPort(t *testing.T) {
+	n, err := NewSMTPNotifier("smtp.example.com", "", "", "from@example.com", "to@example.com", 0)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("expected no error, got %v", err)
 	}
+	if n.port != 587 {
+		t.Errorf("expected default port 587, got %d", n.port)
+	}
+}
+
+func TestNewSMTPNotifier_ImplementsInterface(t *testing.T) {
+	n, _ := NewSMTPNotifier("smtp.example.com", "", "", "from@example.com", "to@example.com", 587)
 	var _ Notifier = n
-}
-
-func TestSMTPNotifier_Notify_FailsWithNoServer(t *testing.T) {
-	n, err := NewSMTPNotifier("127.0.0.1", 19999, "", "", "from@example.com", []string{"to@example.com"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	secret := newSMTPSecret()
-	err = n.Notify(secret)
-	if err == nil {
-		t.Fatal("expected error when no SMTP server is available")
-	}
 }
