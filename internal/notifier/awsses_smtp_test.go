@@ -20,7 +20,7 @@ func TestNewSMTPNotifier_Valid(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	if n == nil {
-		t.Fatal("expected non-nil notifier")
+		t.Fatal("expected notifier, got nil")
 	}
 }
 
@@ -41,11 +41,11 @@ func TestNewSMTPNotifier_MissingFrom(t *testing.T) {
 func TestNewSMTPNotifier_MissingTo(t *testing.T) {
 	_, err := NewSMTPNotifier("smtp.example.com", 587, "user", "pass", "from@example.com", nil)
 	if err == nil {
-		t.Fatal("expected error for missing recipients")
+		t.Fatal("expected error for missing to")
 	}
 }
 
 func TestNewSMTPNotifier_ImplementsInterface(t *testing.T) {
-	n, _ := NewSMTPNotifier("smtp.example.com", 587, "", "", "from@example.com", []string{"to@example.com"})
+	n, _ := NewSMTPNotifier("smtp.example.com", 587, "user", "pass", "from@example.com", []string{"to@example.com"})
 	var _ Notifier = n
 }
