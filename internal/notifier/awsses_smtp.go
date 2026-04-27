@@ -7,26 +7,29 @@ import (
 	"github.com/yourusername/vaultwatch/internal/vault"
 )
 
-// SMTPNotifier sends notifications via SMTP (e.g. AWS SES SMTP endpoint).
+// SMTPNotifier sends notifications via SMTP (e.g. AWS SES SMTP interface).
 type SMTPNotifier struct {
-	host     string
-	port     int
+	host string
+	port string
 	username string
 	password string
-	from     string
-	to       []string
+	from string
+	to string
 }
 
 // NewSMTPNotifier creates a new SMTPNotifier.
-func NewSMTPNotifier(host string, port int, username, password, from string, to []string) (*SMTPNotifier, error) {
+func NewSMTPNotifier(host, port, username, password, from, to string) (*SMTPNotifier, error) {
 	if host == "" {
 		return nil, fmt.Errorf("smtp: host is required")
 	}
 	if from == "" {
 		return nil, fmt.Errorf("smtp: from address is required")
 	}
-	if len(to) == 0 {
-		return nil, fmt.Errorf("smtp: at least one recipient is required")
+	if to == "" {
+		return nil, fmt.Errorf("smtp: to address is required")
+	}
+	if port == "" {
+		port = "587"
 	}
 	return &SMTPNotifier{
 		host:     host,
@@ -42,11 +45,12 @@ func NewSMTPNotifier(host string, port int, username, password, from string, to 
 func (n *SMTPNotifier) Notify(secret *vault.Secret) error {
 	msg := FormatMessage(secret)
 	body := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s",
-		n.from, n.to[0], msg.Subject, msg.Body)
-	addr := fmt.Sprintf("%s:%d", n.host, n.port)
+		n.from, n.to, msg.Subject, msg.Body)
+
+	addr := fmt.Sprintf("%s:%s", n.host, n.port)
 	var auth smtp.Auth
-	if n.username != "" {
+	if n.username != "" && n.password != "" {
 		auth = smtp.PlainAuth("", n.username, n.password, n.host)
 	}
-	return smtp.SendMail(addr, auth, n.from, n.to, []byte(body))
+	return smtp.SendMail(addr, auth, n.from, []string{n.to}, []byte(body))
 }
