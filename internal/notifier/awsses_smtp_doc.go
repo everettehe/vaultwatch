@@ -1,20 +1,18 @@
-// Package notifier provides alert delivery integrations for VaultWatch.
+// Package notifier provides notification backends for vaultwatch.
 //
 // # SMTP Notifier
 //
-// The SMTP notifier sends email alerts via a plain SMTP server (e.g. AWS SES
-// SMTP interface, SendGrid, Mailgun, or any self-hosted MTA).
+// The SMTPNotifier sends alert emails directly via an SMTP server.
+// It is compatible with AWS SES SMTP endpoints as well as any
+// standard SMTP relay.
 //
-// Configuration example:
+// # Configuration
 //
 //	smtp:
 //	  host: email-smtp.us-east-1.amazonaws.com
 //	  port: 587
 //	  username: AKIAIOSFODNN7EXAMPLE
-//	  password: secret
-//	  from: vaultwatch@example.com
-//	  to: ops@example.com
-//	  tls: true
-//
-// The notifier uses STARTTLS when tls is true (default: true).
+//	  password: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+//	  from: alerts@example.com
+//	  to: oncall@example.com
 package notifier
