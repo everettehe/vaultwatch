@@ -9,11 +9,10 @@ import (
 
 func minimalConfigWithSMTP() *config.Config {
 	cfg := minimalConfig()
-	cfg.Notifiers.SMTP = &config.SMTPConfig{
+	cfg.SMTP = &config.SMTPConfig{
 		Host: "smtp.example.com",
-		Port: 587,
 		From: "from@example.com",
-		To:   []string{"to@example.com"},
+		To:   "to@example.com",
 	}
 	return cfg
 }
@@ -22,7 +21,7 @@ func TestBuildNotifiers_SMTP_Valid(t *testing.T) {
 	cfg := minimalConfigWithSMTP()
 	notifiers, err := buildNotifiers(cfg)
 	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(notifiers) == 0 {
 		t.Fatal("expected at least one notifier")
@@ -31,24 +30,24 @@ func TestBuildNotifiers_SMTP_Valid(t *testing.T) {
 
 func TestBuildNotifiers_SMTP_MissingFrom(t *testing.T) {
 	cfg := minimalConfigWithSMTP()
-	cfg.Notifiers.SMTP.From = ""
+	cfg.SMTP.From = ""
 	_, err := buildNotifiers(cfg)
 	if err == nil {
-		t.Fatal("expected error for missing from")
+		t.Fatal("expected error for missing from address")
 	}
 }
 
 func TestBuildNotifiers_SMTP_MissingTo(t *testing.T) {
 	cfg := minimalConfigWithSMTP()
-	cfg.Notifiers.SMTP.To = nil
+	cfg.SMTP.To = ""
 	_, err := buildNotifiers(cfg)
 	if err == nil {
-		t.Fatal("expected error for missing to")
+		t.Fatal("expected error for missing to address")
 	}
 }
 
 func TestSMTPNotifier_ImplementsInterface(t *testing.T) {
-	n, err := notifier.NewSMTPNotifier("smtp.example.com", 587, "", "", "from@example.com", []string{"to@example.com"})
+	n, err := notifier.NewSMTPNotifier("smtp.example.com", "", "", "a@b.com", "c@d.com", 587)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

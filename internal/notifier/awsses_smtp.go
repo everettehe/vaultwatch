@@ -7,18 +7,18 @@ import (
 	"github.com/yourusername/vaultwatch/internal/vault"
 )
 
-// SMTPNotifier sends notifications via SMTP (e.g. AWS SES SMTP endpoint).
+// SMTPNotifier sends notifications via SMTP (e.g., AWS SES SMTP endpoint).
 type SMTPNotifier struct {
-	host string
-	port string
+	host     string
+	port     int
 	username string
 	password string
-	from string
-	to string
+	from     string
+	to       string
 }
 
 // NewSMTPNotifier creates a new SMTPNotifier.
-func NewSMTPNotifier(host, port, username, password, from, to string) (*SMTPNotifier, error) {
+func NewSMTPNotifier(host, username, password, from, to string, port int) (*SMTPNotifier, error) {
 	if host == "" {
 		return nil, fmt.Errorf("smtp: host is required")
 	}
@@ -28,8 +28,8 @@ func NewSMTPNotifier(host, port, username, password, from, to string) (*SMTPNoti
 	if to == "" {
 		return nil, fmt.Errorf("smtp: to address is required")
 	}
-	if port == "" {
-		port = "587"
+	if port == 0 {
+		port = 587
 	}
 	return &SMTPNotifier{
 		host:     host,
@@ -44,17 +44,13 @@ func NewSMTPNotifier(host, port, username, password, from, to string) (*SMTPNoti
 // Notify sends an SMTP email notification for the given secret.
 func (n *SMTPNotifier) Notify(s *vault.Secret) error {
 	msg := FormatMessage(s)
-	body := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s",
-		n.from, n.to, msg.Subject, msg.Body)
+	body := fmt.Sprintf("To: %s\r\nFrom: %s\r\nSubject: %s\r\n\r\n%s",
+		n.to, n.from, msg.Subject, msg.Body)
 
+	addr := fmt.Sprintf("%s:%d", n.host, n.port)
 	var auth smtp.Auth
 	if n.username != "" && n.password != "" {
 		auth = smtp.PlainAuth("", n.username, n.password, n.host)
 	}
-
-	addr := fmt.Sprintf("%s:%s", n.host, n.port)
-	if err := smtp.SendMail(addr, auth, n.from, []string{n.to}, []byte(body)); err != nil {
-		return fmt.Errorf("smtp: send failed: %w", err)
-	}
-	return nil
+	return smtp.SendMail(addr, auth, n.from, []string{n.to}, []byte(body))
 }
