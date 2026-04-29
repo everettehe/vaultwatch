@@ -1,16 +1,17 @@
-// Package notifier provides notification backends for vaultwatch.
+// Package notifier provides notification integrations for vaultwatch.
 //
-// # SMTP Notifier
+// SMTPNotifier sends secret expiration alerts via SMTP. It is compatible
+// with AWS SES SMTP endpoints as well as any standard SMTP server.
 //
-// The SMTPNotifier sends alert emails via any SMTP server, including
-// the AWS SES SMTP interface.
+// Configuration example (vaultwatch.yaml):
 //
-// Configuration fields:
-//
-//	host     - SMTP server hostname (required)
-//	port     - SMTP server port (default: 587)
-//	username - SMTP auth username (optional)
-//	password - SMTP auth password (optional)
-//	from     - Sender email address (required)
-//	to       - Recipient email address (required)
+//	notifiers:
+//	  smtp:
+//	    host: email-smtp.us-east-1.amazonaws.com
+//	    port: 587
+//	    username: AKIAIOSFODNN7EXAMPLE
+//	    password: your-smtp-password
+//	    from: alerts@example.com
+//	    to:
+//	      - oncall@example.com
 package notifier
