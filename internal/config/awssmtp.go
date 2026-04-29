@@ -1,11 +1,11 @@
 package config
 
-// SMTPConfig holds configuration for SMTP-based email notifications.
+// SMTPConfig holds configuration for the SMTP notifier.
 type SMTPConfig struct {
-	Host     string   `yaml:"host"`
-	Port     int      `yaml:"port"`
-	Username string   `yaml:"username"`
-	Password string   `yaml:"password"`
-	From     string   `yaml:"from"`
-	To       []string `yaml:"to"`
+	Host     string `yaml:"host"`
+	Port     string `yaml:"port"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+	From     string `yaml:"from"`
+	To       string `yaml:"to"`
 }
