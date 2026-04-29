@@ -7,7 +7,7 @@ import (
 	"github.com/yourusername/vaultwatch/internal/vault"
 )
 
-// SMTPNotifier sends notifications via SMTP (e.g. AWS SES SMTP endpoint).
+// SMTPNotifier sends notifications via SMTP (e.g., AWS SES SMTP endpoint).
 type SMTPNotifier struct {
 	host     string
 	port     int
@@ -28,6 +28,9 @@ func NewSMTPNotifier(host string, port int, username, password, from string, to 
 	if len(to) == 0 {
 		return nil, fmt.Errorf("smtp: at least one recipient is required")
 	}
+	if port == 0 {
+		port = 587
+	}
 	return &SMTPNotifier{
 		host:     host,
 		port:     port,
@@ -38,11 +41,12 @@ func NewSMTPNotifier(host string, port int, username, password, from string, to 
 	}, nil
 }
 
-// Notify sends an email via SMTP for the given secret.
-func (n *SMTPNotifier) Notify(s *vault.Secret) error {
-	msg := FormatMessage(s)
+// Notify sends an email notification via SMTP.
+func (n *SMTPNotifier) Notify(secret *vault.Secret) error {
+	msg := FormatMessage(secret)
 	body := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s",
 		n.from, n.to[0], msg.Subject, msg.Body)
+
 	addr := fmt.Sprintf("%s:%d", n.host, n.port)
 	var auth smtp.Auth
 	if n.username != "" {
