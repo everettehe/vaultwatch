@@ -11,67 +11,76 @@ import (
 )
 
 type mockSESTemplateClient struct {
-	called bool
-	err    error
+	sentInput *sesv2.SendEmailInput
+	err       error
 }
 
-func (m *mockSESTemplateClient) SendEmail(_ context.Context, _ *sesv2.SendEmailInput, _ ...func(*sesv2.Options)) (*sesv2.SendEmailOutput, error) {
-	m.called = true
+func (m *mockSESTemplateClient) SendEmail(_ context.Context, params *sesv2.SendEmailInput, _ ...func(*sesv2.Options)) (*sesv2.SendEmailOutput, error) {
+	m.sentInput = params
 	return &sesv2.SendEmailOutput{}, m.err
 }
 
-func newSESTemplateSecret() vault.Secret {
-	return vault.Secret{
-		Path:      "secret/myapp/api-key",
-		ExpiresAt: time.Now().Add(48 * time.Hour),
+func newSESTemplateSecret(days int) *vault.Secret {
+	return &vault.Secret{
+		Path:      "secret/myapp/db",
+		ExpiresAt: time.Now().Add(time.Duration(days) * 24 * time.Hour),
 	}
 }
 
 func TestNewSESTemplateNotifier_MissingFrom(t *testing.T) {
-	_, err := NewSESTemplateNotifier("", "to@example.com", "MyTemplate", "us-east-1")
+	_, err := newSESTemplateNotifierWithClient(&mockSESTemplateClient{}, "", "to@example.com", "MyTemplate")
 	if err == nil {
 		t.Fatal("expected error for missing from")
 	}
 }
 
 func TestNewSESTemplateNotifier_MissingTo(t *testing.T) {
-	_, err := NewSESTemplateNotifier("from@example.com", "", "MyTemplate", "us-east-1")
+	_, err := newSESTemplateNotifierWithClient(&mockSESTemplateClient{}, "from@example.com", "", "MyTemplate")
 	if err == nil {
 		t.Fatal("expected error for missing to")
 	}
 }
 
 func TestNewSESTemplateNotifier_MissingTemplate(t *testing.T) {
-	_, err := NewSESTemplateNotifier("from@example.com", "to@example.com", "", "us-east-1")
+	_, err := newSESTemplateNotifierWithClient(&mockSESTemplateClient{}, "from@example.com", "to@example.com", "")
 	if err == nil {
-		t.Fatal("expected error for missing template")
-	}
-}
-
-func TestNewSESTemplateNotifier_MissingRegion(t *testing.T) {
-	_, err := NewSESTemplateNotifier("from@example.com", "to@example.com", "MyTemplate", "")
-	if err == nil {
-		t.Fatal("expected error for missing region")
+		t.Fatal("expected error for missing template name")
 	}
 }
 
 func TestSESTemplateNotifier_Notify_ExpiringSoon(t *testing.T) {
-	client := &mockSESTemplateClient{}
-	n := newSESTemplateNotifierWithClient(client, "from@example.com", "to@example.com", "MyTemplate", "us-east-1")
-	err := n.Notify(context.Background(), newSESTemplateSecret())
+	mock := &mockSESTemplateClient{}
+	n, err := newSESTemplateNotifierWithClient(mock, "from@example.com", "to@example.com", "VaultAlert")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !client.called {
+	secret := newSESTemplateSecret(5)
+	if err := n.Notify(context.Background(), secret); err != nil {
+		t.Fatalf("unexpected notify error: %v", err)
+	}
+	if mock.sentInput == nil {
 		t.Fatal("expected SendEmail to be called")
+	}
+	if *mock.sentInput.Content.Template.TemplateName != "VaultAlert" {
+		t.Errorf("expected template name VaultAlert, got %s", *mock.sentInput.Content.Template.TemplateName)
 	}
 }
 
-func TestSESTemplateNotifier_Notify_Error(t *testing.T) {
-	client := &mockSESTemplateClient{err: errors.New("aws error")}
-	n := newSESTemplateNotifierWithClient(client, "from@example.com", "to@example.com", "MyTemplate", "us-east-1")
-	err := n.Notify(context.Background(), newSESTemplateSecret())
+func TestSESTemplateNotifier_Notify_Expired(t *testing.T) {
+	mock := &mockSESTemplateClient{}
+	n, _ := newSESTemplateNotifierWithClient(mock, "from@example.com", "to@example.com", "VaultAlert")
+	secret := newSESTemplateSecret(-1)
+	if err := n.Notify(context.Background(), secret); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestSESTemplateNotifier_Notify_ClientError(t *testing.T) {
+	mock := &mockSESTemplateClient{err: errors.New("send failed")}
+	n, _ := newSESTemplateNotifierWithClient(mock, "from@example.com", "to@example.com", "VaultAlert")
+	secret := newSESTemplateSecret(3)
+	err := n.Notify(context.Background(), secret)
 	if err == nil {
-		t.Fatal("expected error from SendEmail")
+		t.Fatal("expected error from client")
 	}
 }

@@ -11,60 +11,72 @@ import (
 	"github.com/yourusername/vaultwatch/internal/vault"
 )
 
-// SESTemplateNotifier sends notifications via AWS SES using a pre-defined template.
-type SESTemplateNotifier struct {
-	client    sesTemplateClient
-	from      string
-	to        string
-	template  string
-	region    string
-}
-
 type sesTemplateClient interface {
 	SendEmail(ctx context.Context, params *sesv2.SendEmailInput, optFns ...func(*sesv2.Options)) (*sesv2.SendEmailOutput, error)
 }
 
-// NewSESTemplateNotifier creates a new SESTemplateNotifier.
-func NewSESTemplateNotifier(from, to, template, region string) (*SESTemplateNotifier, error) {
+// SESTemplateNotifier sends alerts via AWS SES using a pre-defined template.
+type SESTemplateNotifier struct {
+	client       sesTemplateClient
+	from         string
+	to           string
+	templateName string
+}
+
+// NewSESTemplateNotifier creates a new SESTemplateNotifier using ambient AWS credentials.
+func NewSESTemplateNotifier(from, to, templateName, region string) (*SESTemplateNotifier, error) {
 	if from == "" {
 		return nil, fmt.Errorf("ses_template: from address is required")
 	}
 	if to == "" {
 		return nil, fmt.Errorf("ses_template: to address is required")
 	}
-	if template == "" {
+	if templateName == "" {
 		return nil, fmt.Errorf("ses_template: template name is required")
 	}
-	if region == "" {
-		return nil, fmt.Errorf("ses_template: region is required")
-	}
-	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(region))
+	cfg, err := config.LoadDefaultConfig(context.Background(),
+		config.WithRegion(region),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("ses_template: failed to load AWS config: %w", err)
 	}
-	return newSESTemplateNotifierWithClient(sesv2.NewFromConfig(cfg), from, to, template, region), nil
+	return newSESTemplateNotifierWithClient(sesv2.NewFromConfig(cfg), from, to, templateName)
 }
 
-func newSESTemplateNotifierWithClient(client sesTemplateClient, from, to, template, region string) *SESTemplateNotifier {
-	return &SESTemplateNotifier{client: client, from: from, to: to, template: template, region: region}
+func newSESTemplateNotifierWithClient(client sesTemplateClient, from, to, templateName string) (*SESTemplateNotifier, error) {
+	if from == "" {
+		return nil, fmt.Errorf("ses_template: from address is required")
+	}
+	if to == "" {
+		return nil, fmt.Errorf("ses_template: to address is required")
+	}
+	if templateName == "" {
+		return nil, fmt.Errorf("ses_template: template name is required")
+	}
+	return &SESTemplateNotifier{
+		client:       client,
+		from:         from,
+		to:           to,
+		templateName: templateName,
+	}, nil
 }
 
-// Notify sends a templated email notification for the given secret.
-func (n *SESTemplateNotifier) Notify(ctx context.Context, secret vault.Secret) error {
-	msg, _ := FormatMessage(secret)
-	input := &sesv2.SendEmailInput{
+// Notify sends a templated SES email for the given secret.
+func (n *SESTemplateNotifier) Notify(ctx context.Context, secret *vault.Secret) error {
+	msg := FormatMessage(secret)
+	templateData := fmt.Sprintf(`{"subject":%q,"body":%q}`, msg.Subject, msg.Body)
+	_, err := n.client.SendEmail(ctx, &sesv2.SendEmailInput{
 		FromEmailAddress: aws.String(n.from),
 		Destination: &types.Destination{
 			ToAddresses: []string{n.to},
 		},
 		Content: &types.EmailContent{
 			Template: &types.Template{
-				TemplateName: aws.String(n.template),
-				TemplateData: aws.String(fmt.Sprintf(`{"message":%q,"path":%q}`, msg.Body, secret.Path)),
+				TemplateName: aws.String(n.templateName),
+				TemplateData: aws.String(templateData),
 			},
 		},
-	}
-	_, err := n.client.SendEmail(ctx, input)
+	})
 	if err != nil {
 		return fmt.Errorf("ses_template: failed to send email: %w", err)
 	}
